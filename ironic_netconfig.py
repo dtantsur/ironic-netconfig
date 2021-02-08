@@ -71,19 +71,14 @@ def partition_with_path(path):
 
         path = partition_index_to_name(root_dev, part['number'])
         try:
-            utils.execute('mount', path, local_path)
+            with utils.mounted(path) as local_path:
+                conf_path = os.path.join(local_path, path)
+                if not os.path.isdir(conf_path):
+                    continue
+
+                yield conf_path
         except processutils.ProcessExecutionError:
             continue
-
-        try:
-            conf_path = os.path.join(local_path, path)
-            if not os.path.isdir(conf_path):
-                continue
-
-            yield conf_path
-        finally:
-            utils.execute('umount', local_path, attempts=3,
-                          delay_on_retry=True)
 
 
 PATH = '/etc/sysconfig/network-scripts'
