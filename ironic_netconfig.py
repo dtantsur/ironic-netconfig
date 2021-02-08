@@ -36,9 +36,11 @@ NM_CONTROLLED=yes
 
 def find_device_by_mac(mac):
     for dev in netifaces.interfaces():
-        if mac.lower() in (x['addr'].lower() for x in
-                           netifaces.ifaddresses(dev)[netifaces.AF_LINK]):
+        if mac.lower() in (
+                x['addr'].lower() for x in
+                netifaces.ifaddresses(dev).get(netifaces.AF_LINK, ())):
             return dev
+    raise RuntimeError("Device with MAC %s was not found" % mac)
 
 
 def port_to_config(port):
@@ -77,8 +79,12 @@ def partition_with_path(path):
                     continue
 
                 yield conf_path
+                return
         except processutils.ProcessExecutionError:
             continue
+
+    raise RuntimeError("No partition found with path %s, scanned: %s"
+                       % (path, partitions))
 
 
 PATH = '/etc/sysconfig/network-scripts'
