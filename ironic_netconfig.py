@@ -12,6 +12,7 @@
 
 import contextlib
 import ipaddress
+import logging
 import os
 import tempfile
 
@@ -33,12 +34,15 @@ ONBOOT=yes
 NM_CONTROLLED=yes
 """
 
+LOG = logging.getLogger(__name__)
+
 
 def find_device_by_mac(mac):
     for dev in netifaces.interfaces():
-        if mac.lower() in (
-                x['addr'].lower() for x in
-                netifaces.ifaddresses(dev).get(netifaces.AF_LINK, ())):
+        ifaddresses = netifaces.ifaddresses(dev)
+        LOG.debug('Inspecting device %s with addresses %s', dev, ifaddresses)
+        if mac.lower() in (x['addr'].lower() for x in
+                           ifaddresses.get(netifaces.AF_LINK, ())):
             return dev
     raise RuntimeError("Device with MAC %s was not found" % mac)
 
@@ -69,19 +73,22 @@ def partition_with_path(path):
 
     for part in partitions:
         if 'esp' in part['flags'] or 'lvm' in part['flags']:
+            LOG.debug('Skipping partition %s', part)
             continue
 
         part_path = partition_index_to_name(root_dev, part['number'])
         try:
             with utils.mounted(part_path) as local_path:
                 conf_path = os.path.join(local_path, path)
+                LOG.debug('Checking for path %s on %s', conf_path, part_path)
                 if not os.path.isdir(conf_path):
                     continue
 
+                LOG.info('Path found: %s on %s', conf_path, part_path)
                 yield conf_path
                 return
-        except processutils.ProcessExecutionError:
-            continue
+        except processutils.ProcessExecutionError as exc:
+            LOG.warning('Failure when inspecting partition %s: %s', part, exc)
 
     raise RuntimeError("No partition found with path %s, scanned: %s"
                        % (path, partitions))
@@ -115,5 +122,6 @@ class NetConfigHardwareManager(hardware.HardwareManager):
             with partition_with_path(PATH) as path:
                 fname = "ifcfg-%s" % find_device_by_mac(port['address'])
                 fname = os.path.join(path, fname)
+                LOG.info("Writing config to %s: %s", fname, config)
                 with open(fname, "wt") as fp:
                     fp.write(config)
