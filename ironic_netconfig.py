@@ -101,6 +101,7 @@ class NetConfigHardwareManager(hardware.HardwareManager):
     def get_deploy_steps(self, node, ports):
         return [
             {
+                'interface': 'deploy',
                 'step': 'write_netconfig',
                 'priority': 0,
                 'reboot_requested': False,
