@@ -71,9 +71,9 @@ def partition_with_path(path):
         if 'esp' in part['flags'] or 'lvm' in part['flags']:
             continue
 
-        path = partition_index_to_name(root_dev, part['number'])
+        part_path = partition_index_to_name(root_dev, part['number'])
         try:
-            with utils.mounted(path) as local_path:
+            with utils.mounted(part_path) as local_path:
                 conf_path = os.path.join(local_path, path)
                 if not os.path.isdir(conf_path):
                     continue
