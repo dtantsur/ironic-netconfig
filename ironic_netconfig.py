@@ -94,7 +94,7 @@ def partition_with_path(path):
                        % (path, partitions))
 
 
-PATH = '/etc/sysconfig/network-scripts'
+PATH = 'etc/sysconfig/network-scripts'
 
 
 class NetConfigHardwareManager(hardware.HardwareManager):
@@ -117,9 +117,18 @@ class NetConfigHardwareManager(hardware.HardwareManager):
         ]
 
     def write_netconfig(self, node, ports):
-        for port in ports:
-            config = port_to_config(port)
-            with partition_with_path(PATH) as path:
+        # Run this first to validate the request
+        configs = [(port, port_to_config(port)) for port in ports]
+
+        with partition_with_path(PATH) as path:
+            # Purge any existing configuration
+            for current in os.listdir(path):
+                if current.startswith('ifcfg-'):
+                    LOG.debug('Removing %s', current)
+                    utils.unlink_without_raise(os.path.join(path, current))
+
+            for port, config in configs:
+                # Write a new configuration
                 fname = "ifcfg-%s" % find_device_by_mac(port['address'])
                 fname = os.path.join(path, fname)
                 LOG.info("Writing config to %s: %s", fname, config)
